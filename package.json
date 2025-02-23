@@ -1,0 +1,23 @@
+{
+  "name": "com.w0lfend.yummycoroutine",
+  "version": "1.0.0",
+  "displayName": "Yummy Coroutine",
+  "description": "Extended must-have functionality for unity coroutines (pause, onComplete, onException, nested coroutines, parallel coroutines and more)",
+  "unity": "2022.1",
+  "unityRelease": "1f1",
+  "documentationUrl": "https://github.com/W0lfEnd/yummy-coroutine/blob/main/README.md",
+  "changelogUrl": "https://github.com/W0lfEnd/yummy-coroutine/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/W0lfEnd/yummy-coroutine/blob/main/LICENSE.md",
+  "keywords": [
+    "coroutines",
+    "async",
+    "utility",
+    "unity"
+  ],
+  "author": {
+    "name": "W0lfEnd",
+    "email": "oliinyk.dev@gmail.com",
+    "url": "https://github.com/W0lfEnd"
+  },
+  "type": "library"
+}
