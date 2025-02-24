@@ -1,4 +1,4 @@
-# YummyCoroutine
+![YummyLogo](https://github.com/user-attachments/assets/b647e1f6-2603-4e9c-a150-82b783139d8a)
 
 Library for Unity that simplifies working with coroutines, adding convenient control methods, exception handling, and parallel execution.
 
@@ -10,8 +10,10 @@ Library for Unity that simplifies working with coroutines, adding convenient con
     - [Nested Coroutines](#nested-coroutines)
     - [Completion Handling](#coroutine-completion-handling)
     - [Parallel Coroutine Execution](#parallel-coroutine-execution-parallel)
-- [**YCoroutine with result**](#ycoroutine-with-result)
-- [**YCoroutineExtensions**](#ycoroutineextensions)
+- [**Custom yield value handler**](#custom-yield-value-handler)
+- [**Coroutine with result**](#ycoroutine-with-result)
+- [**Extensions**](#ycoroutineextensions)
+- [**Future features**](#future-features-not-implemented-yet)
 
 ## Getting Started
 
