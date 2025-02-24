@@ -17,38 +17,38 @@ namespace YummyCoroutine.Runtime.Extensions
             return new YCoroutine().Start(enumerator);
         }
 
-        public static YCoroutine WithTimeout(this YCoroutine cor, float timeoutSeconds = 15.0f)
+        public static YCoroutine WithTimeout(this YCoroutine cor, float timeoutSeconds)
         {
-            if (cor.State != YCoroutineState.Finished)
+            if (cor.State != YCoroutineState.FinishedSuccessfully)
                 return cor;
 
-            YCoroutine timeoutCor = WaitAndDo(cor.Stop, timeoutSeconds);
-            return cor.OnComplete(() => timeoutCor.Stop());
+            YCoroutine timeoutCor = Wait(timeoutSeconds).OnComplete(cor.Stop);
+            cor.AddOnComplete(timeoutCor.Stop);
+            return cor;
         }
-        
-        public static IEnumerator While(Func<bool> condition, object yieldReturn = null)
+
+        public static YCoroutine While(Func<bool> condition, object yieldReturn = null)
+        {
+            return new YCoroutine().Start(WhileCoroutine(condition, yieldReturn));
+        }
+
+        public static IEnumerator WhileCoroutine(Func<bool> condition, object yieldReturn = null)
         {
             while (condition())
                 yield return yieldReturn;
         }
 
-        public static YCoroutine WaitAndDo(
-            Action action
-            , float delay = 0.0f
-            , int delayFrames = 0
-            , bool unscaledTime = false
-        )
+        public static YCoroutine WaitFrames(int delayFrames)
         {
-            if (delay == 0 && delayFrames == 0)
-            {
-                action();
-                return YCoroutine.FinishedCoroutine;
-            }
-
-            return new YCoroutine().Start(WaitAndDo(delay, action, delayFrames, unscaledTime));
+            return new YCoroutine().Start(WaitFramesCoroutine(delayFrames));
+        }
+        
+        public static YCoroutine Wait(float delay, bool unscaledTime = false)
+        {
+            return new YCoroutine().Start(WaitCoroutine(delay, unscaledTime));
         }
 
-        public static IEnumerator WaitAndDo(float delay = 0.0f, Action callback = null, int delayFrames = 0, bool unscaledTime = true)
+        private static IEnumerator WaitCoroutine(float delay, bool unscaledTime = true)
         {
             if (delay > 0.0f)
             {
@@ -56,36 +56,18 @@ namespace YummyCoroutine.Runtime.Extensions
                     ? new WaitForSecondsRealtime(delay)
                     : new WaitForSeconds(delay);
             }
+        }
 
+        public static IEnumerator WaitFramesCoroutine(int delayFrames)
+        {
             for (int i = 0; i < delayFrames; i++)
                 yield return null;
-
-            callback?.Invoke();
         }
 
-        public static YCoroutine WaitUntilAndDo(Func<bool> condition, Action callback = null, object returnObject = null)
+        public static void StopAndNull(ref YCoroutine cor)
         {
-            if (condition())
-            {
-                callback?.Invoke();
-                return YCoroutine.FinishedCoroutine;
-            }
-
-            IEnumerator Coroutine()
-            {
-                while (!condition())
-                    yield return returnObject;
-
-                callback?.Invoke();
-            }
-
-            return Coroutine().Start();
-        }
-
-        public static void StopAndNull(ref YCoroutine yCoroutine)
-        {
-            yCoroutine?.Stop();
-            yCoroutine = null;
+            cor?.Stop();
+            cor = null;
         }
     }
 }

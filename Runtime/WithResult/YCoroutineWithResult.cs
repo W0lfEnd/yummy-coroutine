@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using UnityEngine;
 using YummyCoroutine.Runtime.Core;
 using YummyCoroutine.Runtime.Utility;
@@ -25,6 +26,11 @@ namespace YummyCoroutine.Runtime.WithResult
             }
         }
 
+        public new YCoroutineWithResult<T> Start(IEnumerator enumerator)
+        {
+            return base.Start(enumerator) as YCoroutineWithResult<T>;
+        }
+
         public bool HasResult { get; private set; }
 
         public WaitUntil WaitForResult => new(() =>
@@ -45,7 +51,7 @@ namespace YummyCoroutine.Runtime.WithResult
         {
             base.DoFinishActions();
 
-            if (State == YCoroutineState.Finished)
+            if (State == YCoroutineState.FinishedSuccessfully)
             {
                 if (!HasResult)
                     Debug.LogError("Coroutine finished without a result!");

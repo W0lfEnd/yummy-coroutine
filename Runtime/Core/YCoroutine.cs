@@ -8,25 +8,46 @@ namespace YummyCoroutine.Runtime.Core
 {
     public partial class YCoroutine : IYCoroutine
     {
-        public static YCoroutine FinishedCoroutine => new() { State = YCoroutineState.Finished };
+        public static YCoroutine FinishedCoroutine => new() { State = YCoroutineState.FinishedSuccessfully };
         public static YCoroutine StoppedCoroutine => new() { State = YCoroutineState.Interrupted };
 
-        public YCoroutineState State { get; protected set; } = YCoroutineState.Finished;
-        public bool IsFinished => State is YCoroutineState.Finished or YCoroutineState.Interrupted;
+        public YCoroutineState State { get; protected set; } = YCoroutineState.FinishedSuccessfully;
+        public bool IsFinished => State is YCoroutineState.FinishedSuccessfully or YCoroutineState.Interrupted;
         public bool IsRunning => State == YCoroutineState.Running;
-        public bool IsPaused { get; set; }
+        public bool IsPaused
+        {
+            get => _isPaused;
+            set
+            {
+                if (_isPaused == value)
+                    return;
+
+                _isPaused = value;
+                onPause?.Invoke(value);
+            }
+        }
         public Exception Exception { get; protected set; }
 
         private static readonly HashSet<YCoroutine> _allActiveCoroutines = new();
         private Coroutine _coroutine;
+        private bool _isPaused;
 
-        public void SetFinished()
+        public YCoroutine Start(IEnumerator enumerator)
         {
-            if (IsFinished)
-                return;
+            if (!_coroutineCoroutiner)
+            {
+                Debug.LogError("Coroutine coroutiner is not initialized!");
+                return StoppedCoroutine;
+            }
 
-            State = YCoroutineState.Finished;
-            DoFinishActions();
+            Stop();
+
+            enumerator = StartInternal(enumerator);
+            _coroutine = _coroutineCoroutiner.StartCoroutine(enumerator);
+
+            _allActiveCoroutines.Add(this);
+
+            return this;
         }
 
         public virtual void Stop()
@@ -53,49 +74,28 @@ namespace YummyCoroutine.Runtime.Core
             DoFinishActions();
         }
 
+        public void SetFinished()
+        {
+            if (IsFinished)
+                return;
+
+            State = YCoroutineState.FinishedSuccessfully;
+            DoFinishActions();
+        }
+
         public IEnumerator WaitEnd(bool throwIfStopped = true)
         {
             while (!IsFinished)
                 yield return null;
-            
+
             if (throwIfStopped && State is YCoroutineState.Interrupted)
                 throw new StopYCoroutineException();
-        }
-
-        public YCoroutine Start(IEnumerator enumerator)
-        {
-            if (!_coroutineCoroutiner)
-            {
-                Debug.LogError("Coroutine coroutiner is not initialized!");
-                return StoppedCoroutine;
-            }
-
-            Stop();
-
-            enumerator = StartInternal(enumerator);
-            _coroutine = _coroutineCoroutiner.StartCoroutine(enumerator);
-
-            _allActiveCoroutines.Add(this);
-
-            return this;
-        }
-
-        private void StopWithException(Exception ex)
-        {
-            if (!_coroutineCoroutiner)
-            {
-                Debug.LogError("Coroutine coroutiner is not initialized!");
-                return;
-            }
-
-            RememberException(ex);
-            Stop();
         }
 
         private IEnumerator StartInternal(IEnumerator enumerator)
         {
             State = YCoroutineState.Running;
-            IsPaused = false;
+            _isPaused = false;
             Exception = null;
 
             yield return EnumerateThrough(enumerator);
@@ -112,7 +112,7 @@ namespace YummyCoroutine.Runtime.Core
                 }
             }
 
-            State = YCoroutineState.Finished;
+            State = YCoroutineState.FinishedSuccessfully;
             DoFinishActions();
         }
 
@@ -129,6 +129,11 @@ namespace YummyCoroutine.Runtime.Core
                 {
                     if (!enumerator.MoveNext())
                         break;
+                }
+                catch(StopYCoroutineException)
+                {
+                    Stop();
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -156,12 +161,8 @@ namespace YummyCoroutine.Runtime.Core
                     {
                         var handleResult = TryCustomHandle(yieldValue);
                         if (!handleResult.IsHandled)
-                        {
                             yield return yieldValue;
-                            break;
-                        }
-
-                        if (handleResult.NeedYieldReturn)
+                        else if (handleResult.NeedYieldReturn)
                             yield return handleResult.YieldValue;
 
                         break;
@@ -172,10 +173,11 @@ namespace YummyCoroutine.Runtime.Core
 
         protected virtual void DoFinishActions()
         {
+            _isPaused = false;
             onComplete?.Invoke();
             switch (State)
             {
-                case YCoroutineState.Finished:
+                case YCoroutineState.FinishedSuccessfully:
                     onSuccess?.Invoke();
                     break;
                 case YCoroutineState.Interrupted when Exception != null:
@@ -194,6 +196,18 @@ namespace YummyCoroutine.Runtime.Core
 
             _parallelCoroutines?.Clear();
             _allActiveCoroutines.Remove(this);
+        }
+
+        private void StopWithException(Exception ex)
+        {
+            if (!_coroutineCoroutiner)
+            {
+                Debug.LogError("Coroutine coroutiner is not initialized!");
+                return;
+            }
+
+            RememberException(ex);
+            Stop();
         }
 
         private void RememberException(Exception exception)

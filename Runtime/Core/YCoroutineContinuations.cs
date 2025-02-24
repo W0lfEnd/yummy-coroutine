@@ -8,6 +8,7 @@ namespace YummyCoroutine.Runtime.Core
         public event Action onSuccess;
         public event Action onStopped;
         public event Action<Exception> onException;
+        public event Action<bool> onPause;
 
         IYCoroutine IYCoroutine.OnComplete(Action action)
             => OnComplete(action);
@@ -20,6 +21,9 @@ namespace YummyCoroutine.Runtime.Core
 
         IYCoroutine IYCoroutine.OnException(Action<Exception> action)
             => OnException(action);
+
+        IYCoroutine IYCoroutine.OnPause(Action<bool> action)
+            => OnPause(action);
 
         public YCoroutine OnComplete(Action action)
         {
@@ -42,6 +46,72 @@ namespace YummyCoroutine.Runtime.Core
         public YCoroutine OnException(Action<Exception> action)
         {
             onException = action;
+            return this;
+        }
+
+        public YCoroutine OnPause(Action<bool> action)
+        {
+            onPause = action;
+            return this;
+        }
+
+        public YCoroutine AddOnComplete(Action action)
+        {
+            onComplete += action;
+            return this;
+        }
+
+        public YCoroutine AddOnSuccess(Action action)
+        {
+            onSuccess += action;
+            return this;
+        }
+
+        public YCoroutine AddOnStopped(Action action)
+        {
+            onStopped += action;
+            return this;
+        }
+
+        public YCoroutine AddOnException(Action<Exception> action)
+        {
+            onException += action;
+            return this;
+        }
+
+        public YCoroutine AddOnPause(Action<bool> action)
+        {
+            onPause += action;
+            return this;
+        }
+
+        public YCoroutine RemoveOnComplete(Action action)
+        {
+            onComplete -= action;
+            return this;
+        }
+        
+        public YCoroutine RemoveOnSuccess(Action action)
+        {
+            onSuccess -= action;
+            return this;
+        }
+        
+        public YCoroutine RemoveOnStopped(Action action)
+        {
+            onStopped -= action;
+            return this;
+        }
+        
+        public YCoroutine RemoveOnException(Action<Exception> action)
+        {
+            onException -= action;
+            return this;
+        }
+
+        public YCoroutine RemoveOnPause(Action<bool> action)
+        {
+            onPause -= action;
             return this;
         }
     }

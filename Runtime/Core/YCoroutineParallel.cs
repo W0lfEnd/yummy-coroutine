@@ -47,9 +47,9 @@ namespace YummyCoroutine.Runtime.Core
         public readonly bool StopParent;
         private readonly YCoroutine _parent;
 
-        public YCoroutineParallel(YCoroutine yCoroutine, bool stopParent)
+        public YCoroutineParallel(YCoroutine parent, bool stopParent)
         {
-            _parent = yCoroutine ?? throw new ArgumentNullException(nameof(yCoroutine));
+            _parent = parent ?? throw new ArgumentNullException(nameof(parent));
             this.StopParent = stopParent;
         }
 
@@ -57,6 +57,36 @@ namespace YummyCoroutine.Runtime.Core
         public bool IsFinished => _parent.IsFinished;
         public bool IsPaused => _parent.IsPaused;
         public Exception Exception => _parent.Exception;
+
+        public event Action onComplete
+        {
+            add => _parent.onComplete += value;
+            remove => _parent.onComplete -= value;
+        }
+
+        public event Action onSuccess
+        {
+            add => _parent.onSuccess += value;
+            remove => _parent.onSuccess -= value;
+        }
+
+        public event Action onStopped
+        {
+            add => _parent.onStopped += value;
+            remove => _parent.onStopped -= value;
+        }
+
+        public event Action<Exception> onException
+        {
+            add => _parent.onException += value;
+            remove => _parent.onException -= value;
+        }
+
+        public event Action<bool> onPause
+        {
+            add => _parent.onPause += value;
+            remove => _parent.onPause -= value;
+        }
 
         public void SetFinished()
         {
@@ -89,6 +119,12 @@ namespace YummyCoroutine.Runtime.Core
         public IYCoroutine OnException(Action<Exception> action)
         {
             _parent.OnException(action);
+            return this;
+        }
+
+        public IYCoroutine OnPause(Action<bool> action)
+        {
+            _parent.OnPause(action);
             return this;
         }
 

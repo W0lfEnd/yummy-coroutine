@@ -5,6 +5,6 @@
         None,
         Running,
         Interrupted,
-        Finished,
+        FinishedSuccessfully,
     }
 }

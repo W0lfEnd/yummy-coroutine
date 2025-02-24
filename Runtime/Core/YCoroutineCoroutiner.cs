@@ -13,7 +13,7 @@ namespace YummyCoroutine.Runtime.Core
             }
         }
 
-        private static Coroutiner _coroutineCoroutiner = null;
+        private static Coroutiner _coroutineCoroutiner;
 
         public static void Init()
         {

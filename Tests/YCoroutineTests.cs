@@ -20,55 +20,34 @@ namespace YummyCoroutine.Tests
             YCoroutine.AddCustomHandler(new YCoroutineWithResultCustomHandler());
         }
 
-        private IEnumerator SimpleExampleEnumerator(int framesToWait = 1)
+        private IEnumerator WaitFramesCoroutine(int framesToWait = 1)
         {
             for (int i = 0; i < framesToWait; i++)
                 yield return null;
         }
 
         [UnityTest]
-        public IEnumerator OnComplete_And_OnSuccess_Test()
+        public IEnumerator OnComplete_Test()
         {
             bool onCompleteCalled = false;
-            bool onSuccessCalled = false;
 
-            YCoroutine cor = new();
-            cor.Start(SimpleExampleEnumerator(1))
-                .OnComplete(() => onCompleteCalled = true)
-                .OnSuccess(() => onSuccessCalled = true);
+            YCoroutine cor = WaitFramesCoroutine(1).Start()
+                .OnComplete(() => onCompleteCalled = true);
 
             yield return null;
-            Assert.IsTrue(onCompleteCalled, "OnComplete should be called when coroutine finishes.");
-            Assert.IsTrue(onSuccessCalled, "OnSuccess should be called when coroutine completes without errors.");
+            Assert.IsTrue(onCompleteCalled, "OnComplete should be called when coroutine finishes no matter with error or not.");
         }
 
         [UnityTest]
-        public IEnumerator Nested_Coroutines_Test()
+        public IEnumerator OnSuccess_Test()
         {
-            var nestedCoroutineWaitFrames = 2;
-            var mainCoroutineWaitFrames = 1;
+            bool onSuccessCalled = false;
 
-            IEnumerator NestedCoroutine()
-            {
-                yield return SimpleExampleEnumerator(nestedCoroutineWaitFrames);
-            }
+            YCoroutine cor = WaitFramesCoroutine(1).Start()
+                .OnSuccess(() => onSuccessCalled = true);
 
-            IEnumerator MainCoroutine()
-            {
-                yield return NestedCoroutine();
-                yield return SimpleExampleEnumerator(mainCoroutineWaitFrames);
-            }
-
-            var isMainCoroutineFinished = false;
-            MainCoroutine().Start()
-                .OnComplete(() => isMainCoroutineFinished = true);
-
-            //skip frames
-            var totalFramesToWait = nestedCoroutineWaitFrames + mainCoroutineWaitFrames;
-            for (int i = 0; i < totalFramesToWait; i++)
-                yield return null;
-
-            Assert.IsTrue(isMainCoroutineFinished, "Nested coroutines must finish in sequence.");
+            yield return null;
+            Assert.IsTrue(onSuccessCalled, "OnSuccess should be called when coroutine completes without errors.");
         }
 
         [UnityTest]
@@ -77,7 +56,7 @@ namespace YummyCoroutine.Tests
             bool onStoppedCalled = false;
 
             YCoroutine cor = new();
-            cor.Start(YCoroutineExtensions.While(() => true))
+            cor.Start(YCoroutineExtensions.WhileCoroutine(() => true))
                .OnStopped(() => onStoppedCalled = true);
 
             //skip 2 frames
@@ -121,33 +100,117 @@ namespace YummyCoroutine.Tests
         }
 
         [UnityTest]
-        public IEnumerator Parallel_Usage_Test()
+        public IEnumerator Pause_Coroutine_Test()
         {
-            bool firstParallelFinished = false;
-            bool secondParallelFinished = false;
-            bool parallelHolderFinished = false;
+            bool onPauseTrueCalled = false;
+            bool onPauseFalseCalled = false;
 
-            IEnumerator ParallelHolder()
+            var cor = WaitFramesCoroutine(2).Start()
+               .OnPause(isPaused =>
+               {
+                   onPauseTrueCalled |= isPaused;
+                   onPauseFalseCalled |= !isPaused;
+               });
+
+            cor.IsPaused = true;
+
+            //without pause coroutine will finish after 2 frames
+            for (int i = 0; i < 10; i++)
+                yield return null;
+
+            Assert.IsTrue(onPauseTrueCalled, "Pausing a coroutine should call OnPause.");
+            Assert.IsTrue(cor.IsPaused, "IsPaused should be true after pausing.");
+            Assert.IsFalse(cor.IsFinished, "IsFinished should be false after pausing.");
+
+            cor.IsPaused = false;
+
+            for (int i = 0; i < 2; i++)
+                yield return null;
+
+            Assert.IsTrue(onPauseFalseCalled, "Resuming a coroutine should call OnPause.");
+            Assert.IsFalse(cor.IsPaused, "IsPaused should be false after resuming.");
+            Assert.IsTrue(cor.IsFinished, "IsFinished should be true after resuming.");
+        }
+
+        [UnityTest]
+        public IEnumerator Nested_Coroutines_Test()
+        {
+            var nestedCoroutineWaitFrames = 2;
+
+            IEnumerator NestedCoroutine()
             {
-                yield return SimpleExampleEnumerator(1).Parallel()
-                    .OnComplete(() => firstParallelFinished = true);
-
-                yield return SimpleExampleEnumerator(1).Parallel()
-                    .OnComplete(() => secondParallelFinished = true);
-
-                parallelHolderFinished = true;
+                yield return WaitFramesCoroutine(nestedCoroutineWaitFrames);
             }
 
-            ParallelHolder().Start();
+            IEnumerator MainCoroutine()
+            {
+                yield return NestedCoroutine(); // yield returning IEnumerator object
+                yield return NestedCoroutine().Start(); // yield returning YCoroutine object
+            }
 
-            Assert.IsFalse(firstParallelFinished, "Parallel coroutines should not finish before their holder.");
-            Assert.IsFalse(secondParallelFinished, "Parallel coroutines should not finish before their holder.");
+            var frameNumberBeforeStart = Time.frameCount;
+            var cor = MainCoroutine().Start();
 
-            yield return null;
+            yield return new WaitUntil(() => cor.IsFinished);
 
-            Assert.IsTrue(firstParallelFinished, "First parallel coroutine should finish.");
-            Assert.IsTrue(secondParallelFinished, "Second parallel coroutine should finish.");
-            Assert.IsTrue(parallelHolderFinished, "Parallel holder should finish after its coroutines.");
+            var frameNumberAfterFinish = Time.frameCount;
+            var framesPassed = frameNumberAfterFinish - frameNumberBeforeStart;
+
+            Assert.AreEqual(nestedCoroutineWaitFrames * 2, framesPassed, "Nested coroutines must finish in sequence.");
+        }
+
+        [UnityTest]
+        public IEnumerator Parallel_Coroutines_Test()
+        {
+            var parallelCoroutineWaitFrames = 2;
+
+            IEnumerator SomeCoroutine()
+            {
+                yield return WaitFramesCoroutine(parallelCoroutineWaitFrames);
+            }
+
+            IEnumerator MainCoroutine()
+            {
+                yield return SomeCoroutine().Parallel();
+                yield return SomeCoroutine().Start().Parallel();
+            }
+
+            var frameNumberBeforeStart = Time.frameCount;
+            var cor = MainCoroutine().Start();
+
+            yield return new WaitUntil(() => cor.IsFinished);
+
+            var frameNumberAfterFinish = Time.frameCount;
+            var framesPassed = frameNumberAfterFinish - frameNumberBeforeStart;
+
+            Assert.AreEqual(parallelCoroutineWaitFrames, framesPassed, "Coroutines must finish in parallel.");
+        }
+
+        [UnityTest]
+        public IEnumerator WithResult_Test()
+        {
+            var expectedResult = 123;
+
+            IEnumerator WithResultCoroutine()
+            {
+                yield return WaitFramesCoroutine(10);
+                yield return new YResult<int>(expectedResult); //can cause to InvalidCastException if type is invalid. Also will be skipped if parent YCoroutine is not a YCoroutineWithResult inheritor
+
+                yield return WaitFramesCoroutine(10); //will never execute
+                Debug.Log("Will never execute"); //will never execute
+            }
+
+            var frameNumberBeforeStart = Time.frameCount;
+            var coroutineWithResult = new YCoroutineWithResult<int>().Start(WithResultCoroutine());
+
+            yield return coroutineWithResult.WaitForResult; //can cause StopYCoroutineException if coroutine will end without success (stopped or exception)
+            var frameNumberAfterFinish = Time.frameCount;
+            var framesPassed = frameNumberAfterFinish - frameNumberBeforeStart;
+
+            Assert.IsTrue(coroutineWithResult.HasResult, "Coroutine should have a result.");
+            Assert.AreEqual(expectedResult, coroutineWithResult.Result, "Result should be set correctly.");
+
+            Assert.AreEqual(10, framesPassed, "Coroutine should end after setting the result.");
         }
     }
 }
